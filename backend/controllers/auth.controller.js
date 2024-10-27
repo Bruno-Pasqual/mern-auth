@@ -1,11 +1,49 @@
-import { User } from "../models/user.model.js";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
+import crypto from "crypto";
 
-export const signup = async (req, res) => {
-	const { email, password } = req.body;
+import { User } from "../models/user.model.js";
+import { generateTokenAndSetCookie } from "../utils/generateTokenAndSetCookie.js";
+import {
+	sendPasswordResetEmail,
+	sendResetSuccessEmail,
+	sendVerificationEmail,
+	sendWelcomeEmail,
+} from "../mailtrap/emails.js";
+
+export const verifyEmail = async (req, res) => {
+	const { code } = req.body;
 
 	try {
-		if (!email || !password) {
+		const user = await User.findOne({
+			verificationToken: code,
+			verificationTokenExpireAt: { $gt: Date.now() },
+		});
+		if (!user) {
+			return res
+				.status(404)
+				.json({ success: false, message: "Invalid or expired verification code" });
+		}
+
+		user.isVerified = true;
+		user.verificationToken = undefined;
+		user.verificationTokenExpireAt = undefined;
+		await user.save();
+		await sendWelcomeEmail(user.email, user.name);
+		res.send({ success: true, message: "Email verified successfully" });
+	} catch (error) {
+		console.log("Error verifying email: ", error);
+		throw new Error("Error verifying email: ", error);
+	}
+};
+
+export const signup = async (req, res) => {
+	const { body } = req;
+	const { email, password, name } = body || {};
+
+	console.log(email, password, name);
+
+	try {
+		if (!email || !password || !name) {
 			throw new Error("All fields are required");
 		}
 
@@ -30,15 +68,136 @@ export const signup = async (req, res) => {
 		//jwt
 
 		generateTokenAndSetCookie(res, user._id);
+
+		await sendVerificationEmail(user.email, verificationToken);
+
+		res.status(201).json({
+			success: true,
+			message: "User created",
+			user: { ...user._doc, password: "" },
+		});
 	} catch (error) {
 		return res.status(500).json({ success: false, message: error.message });
 	}
 };
 
 export const login = async (req, res) => {
-	res.send("Login route");
+	const { email, password } = req.body;
+
+	try {
+		if (!email || !password) {
+			return res
+				.status(400)
+				.json({ success: false, message: "All fields are required" });
+		}
+
+		const user = await User.findOne({ email });
+		if (!user) {
+			res.status(400).json({ success: false, message: "Invalid credentials" });
+		}
+
+		const isMatch = await bcrypt.compare(password, user.password);
+		if (!isMatch) {
+			res.status(400).json({ success: false, message: "Invalid credentials" });
+		}
+
+		generateTokenAndSetCookie(res, user._id);
+		user.lastLogin = Date.now();
+		await user.save();
+
+		res.status(200).json({
+			success: true,
+			message: "Logged in successfully",
+			user: { ...user._doc, password: "" },
+		});
+	} catch (error) {
+		console.log("Error logging in: ", error);
+		return res.status(500).json({ success: false, message: error.message });
+	}
+
+	try {
+	} catch (error) {}
 };
 
 export const logout = async (req, res) => {
-	res.send("Logout route");
+	res.clearCookie("token");
+	res.status(200).json({ success: true, message: "Logged out successfully" });
+};
+
+export const getAllUsers = async (req, res) => {
+	try {
+		const users = await User.find();
+		res.send({
+			success: true,
+			users,
+		});
+	} catch (error) {
+		console.log("Error getting users: ", error);
+		throw new Error("Error getting users: ", error);
+	}
+};
+
+export const forgotPassword = async (req, res) => {
+	const { email } = req.body;
+
+	try {
+		const user = await User.findOne({ email });
+
+		if (!user) {
+			return res.status(404).json({ success: false, message: "User not found" });
+		}
+
+		// Generate a password reset token
+		const resetToken = crypto.randomBytes(20).toString("hex");
+		user.resetPasswordToken = resetToken;
+		user.resetPasswordExpireAt = Date.now() + 1 * 60 * 60 * 1000;
+		await user.save();
+
+		//send email
+		sendPasswordResetEmail(
+			user.email,
+			`${process.env.CLIENT_URL}api/auth/reset-password/${resetToken}`
+		);
+
+		res.status(200).json({
+			success: true,
+			message: "Password reset email sent",
+		});
+	} catch (error) {
+		console.log("Error sending password reset email: ", error);
+		throw new Error("Error sending password reset email: ", error);
+	}
+};
+
+export const resetPassword = async (req, res) => {
+	try {
+		const { token } = req.params;
+		const { password } = req.body;
+
+		const user = await User.findOne({
+			resetPasswordToken: token,
+			resetPasswordExpireAt: { $gt: Date.now() },
+		});
+
+		if (!user) {
+			return res
+				.status(404)
+				.json({ success: false, message: "Invalid or expired token" });
+		}
+
+		//update password
+		const hashedPassword = await bcrypt.hash(password, 10);
+		user.password = hashedPassword;
+		user.resetPasswordToken = undefined;
+		user.resetPasswordExpireAt = undefined;
+		await user.save();
+
+		await sendResetSuccessEmail(user.email, user.name);
+		res
+			.status(200)
+			.json({ success: true, message: "Password reset successfully" });
+	} catch (error) {
+		console.log("Error resetting password: ", error);
+		throw new Error("Error resetting password: ", error);
+	}
 };

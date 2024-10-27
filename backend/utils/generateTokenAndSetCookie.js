@@ -4,7 +4,7 @@ export const generateTokenAndSetCookie = (res, userId) => {
 	const token = jwt.sign({ userId }, process.env.JWT_SECRET, {
 		expiresIn: "1d",
 	});
-	res.cookie("token", token, {
+	res.cookie("MERN-auth", token, {
 		httpOnly: true, //Cannot be accessed from frontend
 		secure: process.env.NODE_ENV === "production",
 		sameSite: "strict",

@@ -1,0 +1,19 @@
+meta {
+  name: Logout
+  type: http
+  seq: 5
+}
+
+post {
+  url: http://localhost:5000/api/auth/logout
+  body: none
+  auth: none
+}
+
+body:json {
+  {
+    "email": "brunoh.pasqual0@gmail.com",
+    "name": "bruno",
+    "password": "123456"
+  }
+}
