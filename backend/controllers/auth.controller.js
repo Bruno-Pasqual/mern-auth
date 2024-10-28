@@ -80,7 +80,6 @@ export const signup = async (req, res) => {
 		return res.status(500).json({ success: false, message: error.message });
 	}
 };
-
 export const login = async (req, res) => {
 	const { email, password } = req.body;
 
@@ -120,7 +119,7 @@ export const login = async (req, res) => {
 };
 
 export const logout = async (req, res) => {
-	res.clearCookie("token");
+	res.clearCookie("mernToken");
 	res.status(200).json({ success: true, message: "Logged out successfully" });
 };
 
@@ -199,5 +198,21 @@ export const resetPassword = async (req, res) => {
 	} catch (error) {
 		console.log("Error resetting password: ", error);
 		throw new Error("Error resetting password: ", error);
+	}
+};
+
+export const checkAuth = async (req, res) => {
+	try {
+		const user = await User.findById(req.userId);
+		if (!user) {
+			return res.status(404).json({ success: false, message: "User not found" });
+		}
+		res.status(200).json({
+			success: true,
+			user: { ...user._doc, password: "" },
+		});
+	} catch (error) {
+		console.log("Error checking authentication: ", error);
+		throw new Error("Error checking authentication: ", error);
 	}
 };

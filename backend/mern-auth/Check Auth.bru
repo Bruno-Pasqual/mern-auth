@@ -1,0 +1,18 @@
+meta {
+  name: Check Auth
+  type: http
+  seq: 10
+}
+
+get {
+  url: http://localhost:5000/api/auth/check-auth
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "brunoh.pasqual0@gmail.com",
+    "password": "123456"
+  }
+}
