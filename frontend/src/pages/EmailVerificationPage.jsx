@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from "react";
+import toast from "react-hot-toast";
+
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { set } from "mongoose";
-import Input from "../components/Input";
+import { useAuthStore } from "../store/authStore";
 
 const EmailVerificationPage = () => {
+	const { verifyEmail, isLoading, error } = useAuthStore();
 	const [code, setCode] = useState(["", "", "", "", "", ""]);
 	const inputRefs = useRef([]);
-	const isLoading = false;
 	const navigate = useNavigate();
 
 	const handleChange = (index, value) => {
@@ -41,13 +42,24 @@ const EmailVerificationPage = () => {
 		}
 	};
 
+	const handleSubmit = async (e) => {
+		e.preventDefault();
+		const verificationCode = code.join("");
+		try {
+			await verifyEmail(verificationCode);
+			navigate("/");
+			toast.success("Email verified successfully");
+		} catch (error) {
+			console.log(error);
+		}
+	};
+
 	//Auto submit when all fields are filled
 	useEffect(() => {
 		if (code.every((digit) => digit !== "")) {
-			const verificationCode = code.join("");
-			console.log(verificationCode);
+			handleSubmit(new Event("submit"));
 		}
-	}, [code, navigate]);
+	}, [code]);
 
 	return (
 		<div className="max-w-md w-full bg-gray-800 bg-opacity-50 backdrop-filter backdrop-blur-xl rounded-2xl shadow-xl overflow-hidden ">
@@ -63,7 +75,7 @@ const EmailVerificationPage = () => {
 				<p className="text-gray-300 text-center mb-6">
 					Enter the 6-digit code sent to your email address{" "}
 				</p>
-				<form className="space-y-6">
+				<form onSubmit={handleSubmit} className="space-y-6">
 					<div className="flex justify-between">
 						{code.map((digit, index) => {
 							return (
@@ -80,6 +92,8 @@ const EmailVerificationPage = () => {
 							);
 						})}
 					</div>
+
+					{error && <p className="text-red-500 text-center mb-6">{error}</p>}
 					<motion.button
 						whileHover={{ scale: 1.05 }}
 						whileTap={{ scale: 0.95 }}
