@@ -122,6 +122,8 @@ export const login = async (req, res) => {
 				.json({ success: false, message: "Invalid credentials" });
 		}
 
+		console.log(isMatch);
+
 		generateTokenAndSetCookie(res, user._id);
 		user.lastLogin = Date.now();
 		await user.save();
@@ -168,18 +170,19 @@ export const forgotPassword = async (req, res) => {
 
 		await user.save();
 
+		console.log(`${process.env.CLIENT_URL}reset-password/${resetToken}`);
 		// send email
-		await sendPasswordResetEmail(
-			user.email,
-			`${process.env.CLIENT_URL}/reset-password/${resetToken}`
-		);
+		// await sendPasswordResetEmail(
+		// 	user.email,
+		// 	`${process.env.CLIENT_URL}/reset-password/${resetToken}`
+		// );
 
-		res
+		return res
 			.status(200)
 			.json({ success: true, message: "Password reset link sent to your email" });
 	} catch (error) {
 		console.log("Error in forgotPassword ", error);
-		res.status(400).json({ success: false, message: error.message });
+		return res.status(400).json({ success: false, message: error.message });
 	}
 };
 

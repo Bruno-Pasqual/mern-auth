@@ -49,8 +49,6 @@ export const useAuthStore = create((set) => ({
 				password,
 			});
 
-			console.log(response != undefined);
-
 			set({
 				user: response.data.user,
 				isAuthenticated: true,
@@ -94,7 +92,6 @@ export const useAuthStore = create((set) => ({
 				code,
 			});
 
-			console.log(response);
 			set({
 				user: response.data.user,
 				isAuthenticated: true,
@@ -135,6 +132,7 @@ export const useAuthStore = create((set) => ({
 		try {
 			const response = await axios.post(`${API_URL}/forgot-password`, { email });
 			set({ message: response.data.message, isLoading: false });
+			return response;
 		} catch (error) {
 			set({
 				isLoading: false,

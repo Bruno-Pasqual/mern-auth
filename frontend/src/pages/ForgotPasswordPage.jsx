@@ -22,6 +22,7 @@ const ForgotPasswordPage = () => {
 		if (response.message) {
 			alert(response.message);
 		}
+
 		setIsSubmitted(true);
 	};
 
