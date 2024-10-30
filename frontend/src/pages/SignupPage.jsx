@@ -10,9 +10,9 @@ const Signup = () => {
 	const { signup, error, isLoading } = useAuthStore();
 	const navigate = useNavigate();
 
-	const [name, setName] = useState("");
-	const [email, setEmail] = useState("");
-	const [password, setPassword] = useState("");
+	const [name, setName] = useState("bruno");
+	const [email, setEmail] = useState("brunoh.pasqual0@gmail.com	");
+	const [password, setPassword] = useState("123456");
 	// const [isLoading, setIsLoading] = useState(false);
 
 	const handleSignUp = async (e) => {

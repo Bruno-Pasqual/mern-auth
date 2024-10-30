@@ -10,6 +10,22 @@ import {
 	sendWelcomeEmail,
 } from "../mailtrap/emails.js";
 
+export const deleteUser = async (req, res) => {
+	const { id } = req.params;
+	try {
+		await User.findByIdAndDelete(id);
+		res.status(200).json({ success: true, message: "User deleted successfully" });
+	} catch (error) {
+		console.log("Error deleting user: ", error);
+		throw new Error("Error deleting user: ", error);
+	}
+};
+
+export const logout = async (req, res) => {
+	res.clearCookie("mernToken");
+	res.status(200).json({ success: true, message: "Logged out successfully" });
+};
+
 export const verifyEmail = async (req, res) => {
 	const { code } = req.body;
 
@@ -29,7 +45,7 @@ export const verifyEmail = async (req, res) => {
 		user.verificationTokenExpireAt = undefined;
 		await user.save();
 		await sendWelcomeEmail(user.email, user.name);
-		res.send({ success: true, message: "Email verified successfully" });
+		res.send({ success: true, message: "Email verified successfully", user });
 	} catch (error) {
 		console.log("Error verifying email: ", error);
 		throw new Error("Error verifying email: ", error);
@@ -83,6 +99,8 @@ export const signup = async (req, res) => {
 export const login = async (req, res) => {
 	const { email, password } = req.body;
 
+	console.log("backend:", email, password);
+
 	try {
 		if (!email || !password) {
 			return res
@@ -92,12 +110,16 @@ export const login = async (req, res) => {
 
 		const user = await User.findOne({ email });
 		if (!user) {
-			res.status(400).json({ success: false, message: "Invalid credentials" });
+			return res
+				.status(400)
+				.json({ success: false, message: "Invalid credentials" });
 		}
 
 		const isMatch = await bcrypt.compare(password, user.password);
 		if (!isMatch) {
-			res.status(400).json({ success: false, message: "Invalid credentials" });
+			return res
+				.status(400)
+				.json({ success: false, message: "Invalid credentials" });
 		}
 
 		generateTokenAndSetCookie(res, user._id);
@@ -113,14 +135,6 @@ export const login = async (req, res) => {
 		console.log("Error logging in: ", error);
 		return res.status(500).json({ success: false, message: error.message });
 	}
-
-	try {
-	} catch (error) {}
-};
-
-export const logout = async (req, res) => {
-	res.clearCookie("mernToken");
-	res.status(200).json({ success: true, message: "Logged out successfully" });
 };
 
 export const getAllUsers = async (req, res) => {
@@ -138,33 +152,34 @@ export const getAllUsers = async (req, res) => {
 
 export const forgotPassword = async (req, res) => {
 	const { email } = req.body;
-
 	try {
 		const user = await User.findOne({ email });
 
 		if (!user) {
-			return res.status(404).json({ success: false, message: "User not found" });
+			return res.status(400).json({ success: false, message: "User not found" });
 		}
 
-		// Generate a password reset token
+		// Generate reset token
 		const resetToken = crypto.randomBytes(20).toString("hex");
+		const resetTokenExpiresAt = Date.now() + 1 * 60 * 60 * 1000; // 1 hour
+
 		user.resetPasswordToken = resetToken;
-		user.resetPasswordExpireAt = Date.now() + 1 * 60 * 60 * 1000;
+		user.resetPasswordExpireAt = resetTokenExpiresAt;
+
 		await user.save();
 
-		//send email
-		sendPasswordResetEmail(
+		// send email
+		await sendPasswordResetEmail(
 			user.email,
-			`${process.env.CLIENT_URL}api/auth/reset-password/${resetToken}`
+			`${process.env.CLIENT_URL}/reset-password/${resetToken}`
 		);
 
-		res.status(200).json({
-			success: true,
-			message: "Password reset email sent",
-		});
+		res
+			.status(200)
+			.json({ success: true, message: "Password reset link sent to your email" });
 	} catch (error) {
-		console.log("Error sending password reset email: ", error);
-		throw new Error("Error sending password reset email: ", error);
+		console.log("Error in forgotPassword ", error);
+		res.status(400).json({ success: false, message: error.message });
 	}
 };
 
