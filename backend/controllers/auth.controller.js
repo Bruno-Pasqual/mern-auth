@@ -67,6 +67,7 @@ export const signup = async (req, res) => {
 
 		if (userAlreadyExists)
 			return res.status(400).json({ message: "User already exists" });
+
 		const hashedPassword = await bcrypt.hash(password, 10);
 		const verificationToken = Math.floor(
 			100000 + Math.random() * 9000
